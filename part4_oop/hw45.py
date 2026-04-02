@@ -89,6 +89,7 @@ class LFUPolicy(Policy[K]):
     capacity: int = 5
     _key_counter: dict[K, int] = field(default_factory=dict, init=False)
     _order: list[K] = field(default_factory=list, init=False)
+
     def register_access(self, key: K) -> None:
         if ~self._key_counter.__contains__(key):
             self._order.append(key)
@@ -96,7 +97,10 @@ class LFUPolicy(Policy[K]):
 
     def get_key_to_evict(self) -> K | None:
         if len(self._key_counter) >= self.capacity:
-            return min([key for key in self._order if key != self._order[-1]], key=lambda x: self._key_counter[x])
+            return min(
+                [key for key in self._order if key != self._order[-1]],
+                key=lambda x: self._key_counter[x],
+            )
         return None
 
     def remove_key(self, key: K) -> None:
@@ -133,7 +137,7 @@ class MIPTCache(Cache[K, V]):
         return self.storage.get(key)
 
     def exists(self, key: K) -> bool:
-            return self.storage.exists(key)
+        return self.storage.exists(key)
 
     def remove(self, key: K) -> None:
         self.storage.remove(key)
@@ -148,7 +152,7 @@ class CachedProperty[V]:
     def __init__(self, func: Callable[..., V]) -> None:
         self.func = func
 
-    def __get__(self, instance: HasCache[Any, Any] | None, owner: type) -> V: # type: ignore[empty-body]
+    def __get__(self, instance: HasCache[Any, Any] | None, owner: type) -> V:  # type: ignore[empty-body]
         if instance is None:
             return self
         cached = instance.cache.get(self.func.__name__)
