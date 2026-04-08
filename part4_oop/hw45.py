@@ -21,7 +21,7 @@ class DictStorage(Storage[K, V]):
         return None
 
     def exists(self, key: K) -> bool:
-        return self._data.__contains__(key)
+        return key in self._data
 
     def remove(self, key: K) -> None:
         if self.exists(key):
@@ -37,7 +37,7 @@ class FIFOPolicy(Policy[K]):
     _order: list[K] = field(default_factory=list, init=False)
 
     def register_access(self, key: K) -> None:
-        if ~self._order.__contains__(key):
+        if  key not in self._data:
             self._order.append(key)
 
     def get_key_to_evict(self) -> K | None:
@@ -46,7 +46,7 @@ class FIFOPolicy(Policy[K]):
         return None
 
     def remove_key(self, key: K) -> None:
-        if self._order.__contains__(key):
+        if key in self._order:
             self._order.remove(key)
 
     def clear(self) -> None:
@@ -63,7 +63,7 @@ class LRUPolicy(Policy[K]):
     _order: list[K] = field(default_factory=list, init=False)
 
     def register_access(self, key: K) -> None:
-        if self._order.__contains__(key):
+        if key in self._order:
             self._order.remove(key)
         self._order.append(key)
 
@@ -73,7 +73,7 @@ class LRUPolicy(Policy[K]):
         return None
 
     def remove_key(self, key: K) -> None:
-        if self._order.__contains__(key):
+        if key in self._order:
             self._order.remove(key)
 
     def clear(self) -> None:
@@ -88,28 +88,19 @@ class LRUPolicy(Policy[K]):
 class LFUPolicy(Policy[K]):
     capacity: int = 5
     _key_counter: dict[K, int] = field(default_factory=dict, init=False)
-    _order: list[K] = field(default_factory=list, init=False)
 
     def register_access(self, key: K) -> None:
-        if ~self._key_counter.__contains__(key):
-            self._order.append(key)
         self._key_counter[key] = self._key_counter.get(key, 0) + 1
 
     def get_key_to_evict(self) -> K | None:
         if len(self._key_counter) >= self.capacity:
-            return min(
-                [key for key in self._order if key != self._order[-1]],
-                key=lambda x: self._key_counter[x],
-            )
+            return min(self._key_counter.items(), key=lambda x: x[1])[0]
         return None
 
     def remove_key(self, key: K) -> None:
-        if self._key_counter.__contains__(key):
-            self._key_counter.pop(key)
-            self._order.remove(key)
+        return self._key_counter.pop(K, None)
 
     def clear(self) -> None:
-        self._order.clear()
         self._key_counter.clear()
 
     @property
@@ -152,9 +143,9 @@ class CachedProperty[V]:
     def __init__(self, func: Callable[..., V]) -> None:
         self.func = func
 
-    def __get__(self, instance: HasCache[Any, Any] | None, owner: type) -> V:
+    def __get__(self, instance: HasCache[Any, Any] | None, owner: type) -> V | "CachedProperty[V]":
         if instance is None:
-            return self  # type: ignore[return-value]
+            return self
         cached = instance.cache.get(self.func.__name__)
         if cached is not None:
             return cached  # type: ignore[no-any-return]
