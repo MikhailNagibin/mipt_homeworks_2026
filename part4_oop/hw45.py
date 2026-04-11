@@ -37,7 +37,7 @@ class FIFOPolicy(Policy[K]):
     _order: list[K] = field(default_factory=list, init=False)
 
     def register_access(self, key: K) -> None:
-        if  key not in self._order:
+        if key not in self._order:
             self._order.append(key)
 
     def get_key_to_evict(self) -> K | None:
@@ -114,9 +114,11 @@ class MIPTCache(Cache[K, V]):
         self.policy = policy
 
     def set(self, key: K, value: V) -> None:
-        evict_key = self.policy.get_key_to_evict()
+        evict_key = None
+        if not self.storage.exists(key):
+            evict_key = self.policy.get_key_to_evict()
         self.policy.register_access(key)
-        if evict_key is not None:
+        if evict_key is not None and evict_key != key:
             self.storage.remove(evict_key)
             self.policy.remove_key(evict_key)
         self.storage.set(key, value)
