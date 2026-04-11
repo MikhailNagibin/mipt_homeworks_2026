@@ -37,7 +37,7 @@ class FIFOPolicy(Policy[K]):
     _order: list[K] = field(default_factory=list, init=False)
 
     def register_access(self, key: K) -> None:
-        if  key not in self._data:
+        if  key not in self._order:
             self._order.append(key)
 
     def get_key_to_evict(self) -> K | None:
@@ -98,7 +98,7 @@ class LFUPolicy(Policy[K]):
         return None
 
     def remove_key(self, key: K) -> None:
-        return self._key_counter.pop(K, None)
+        self._key_counter.pop(key, None)
 
     def clear(self) -> None:
         self._key_counter.clear()
