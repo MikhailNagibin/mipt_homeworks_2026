@@ -114,8 +114,8 @@ class MIPTCache(Cache[K, V]):
         self.policy = policy
 
     def set(self, key: K, value: V) -> None:
-        self.policy.register_access(key)
         evict_key = self.policy.get_key_to_evict()
+        self.policy.register_access(key)
         if evict_key is not None:
             self.storage.remove(evict_key)
             self.policy.remove_key(evict_key)
