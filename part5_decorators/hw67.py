@@ -1,4 +1,5 @@
 import json
+import datetime
 from typing import Any, ParamSpec, Protocol, TypeVar
 from urllib.request import urlopen
 
@@ -20,20 +21,58 @@ class CallableWithMeta(Protocol[P, R_co]):
 
 
 class BreakerError(Exception):
-    pass
+    def __init__(self, func: CallableWithMeta[P, R_co], time: datetime.datetime):
+        super().__init__(TOO_MUCH)
+        self.func_name = f"{func.__name__=} {func.__module__=}"
+        self.block_time = time
 
 
 class CircuitBreaker:
     def __init__(
         self,
-        critical_count: int,
-        time_to_recover: int,
-        triggers_on: type[Exception],
-    ): ...
+        critical_count: int = 5,
+        time_to_recover: int = 3,
+        triggers_on: type[Exception] = None,
+    ):
+        if critical_count < 0:
+            raise ExceptionGroup(VALIDATIONS_FAILED, ValueError(INVALID_RECOVERY_TIME))
+        if time_to_recover < 0:
+            raise ExceptionGroup(VALIDATIONS_FAILED, ValueError(INVALID_RECOVERY_TIME))
+
+        self.critical_count = critical_count
+        self.time_to_recover = time_to_recover
+        self.triggers_on = triggers_on
+        self.count_of_exceptions = 0
+        self.block_time: datetime.datetime | None = None
 
     def __call__(self, func: CallableWithMeta[P, R_co]) -> CallableWithMeta[P, R_co]:
-        raise NotImplementedError
+        self._check_state(func)
+        try:
+            result = func(P.args, P.kwargs)
+        except self.triggers_on as exception:
+            self._handle_failure(func, exception)
+            raise
+        else:
+            self._reset_state()
+        return result
 
+    def _check_state(self, func):
+        if self.block_time is None:
+            return
+        current_time = datetime.datetime.now()
+        if (current_time - self.block_time).total_seconds() < self.time_to_recover:
+            raise BreakerError(func, self.block_time)
+        self._reset_state()
+
+    def _handle_failure(self, func: CallableWithMeta[P, R_co], exception : Exception) -> None:
+        self.count_of_exceptions += 1
+        if self.count_of_exceptions >= self.critical_count:
+            self.block_time = datetime.datetime.now()
+            raise BreakerError(func, self.block_time) from exception
+
+    def _reset_state(self):
+        self.block_time = None
+        self.count_of_exceptions = 0
 
 circuit_breaker = CircuitBreaker(5, 30, Exception)
 
