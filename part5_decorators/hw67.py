@@ -54,7 +54,7 @@ class CircuitBreaker:
 
     def __call__(self, func: CallableWithMeta[P, R_co]) -> CallableWithMeta[P, R_co]:
         @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) ->  R_co:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R_co:
             self._check_state(func)
             try:
                 result = func(*args, **kwargs)
