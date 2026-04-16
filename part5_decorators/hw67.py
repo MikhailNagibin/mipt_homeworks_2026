@@ -1,5 +1,6 @@
 import json
 import datetime
+from functools import wraps
 from typing import Any, ParamSpec, Protocol, TypeVar
 from urllib.request import urlopen
 
@@ -46,15 +47,19 @@ class CircuitBreaker:
         self.block_time: datetime.datetime | None = None
 
     def __call__(self, func: CallableWithMeta[P, R_co]) -> CallableWithMeta[P, R_co]:
-        self._check_state(func)
-        try:
-            result = func(P.args, P.kwargs)
-        except self.triggers_on as exception:
-            self._handle_failure(func, exception)
-            raise
-        else:
-            self._reset_state()
-        return result
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            self._check_state(func)
+            try:
+                result = func(args, kwargs)
+            except self.triggers_on as exception:
+                self._handle_failure(func, exception)
+                raise
+            else:
+                self._reset_state()
+            return result
+
+        return wrapper
 
     def _check_state(self, func):
         if self.block_time is None:
