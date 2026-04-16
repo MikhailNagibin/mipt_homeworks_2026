@@ -60,7 +60,6 @@ class CircuitBreaker:
                 result = func(*args, **kwargs)
             except self.triggers_on as exception:
                 self._handle_failure(func, exception)
-                raise
             else:
                 self._reset_state()
             return result
