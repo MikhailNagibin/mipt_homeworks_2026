@@ -24,7 +24,8 @@ class CallableWithMeta(Protocol[P, R_co]):
 class BreakerError(Exception):
     def __init__(self, func: CallableWithMeta[P, R_co], block_time: datetime.datetime):
         super().__init__(TOO_MUCH)
-        self.func_name = f"{func.__module__}.{func.__name__}"
+        module_name = func.__globals__.get('__name__', func.__module__)
+        self.func_name = f"{module_name}.{func.__name__}"
         self.block_time = block_time
 
 
