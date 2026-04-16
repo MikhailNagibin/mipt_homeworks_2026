@@ -24,7 +24,7 @@ class CallableWithMeta(Protocol[P, R_co]):
 class BreakerError(Exception):
     def __init__(self, func: CallableWithMeta[P, R_co], time: datetime.datetime):
         super().__init__(TOO_MUCH)
-        self.func_name = f"{func.__name__=} {func.__module__=}"
+        self.func_name = f"{func.__module__}.{func.__name__}"
         self.block_time = time
 
 
@@ -33,12 +33,18 @@ class CircuitBreaker:
         self,
         critical_count: int = 5,
         time_to_recover: int = 3,
-        triggers_on: type[Exception] = None,
+        triggers_on: type[Exception] = Exception,
     ):
-        if critical_count < 0:
-            raise ExceptionGroup(VALIDATIONS_FAILED, ValueError(INVALID_RECOVERY_TIME))
+        errors = []
+        if critical_count <= 0:
+            errors.append(ValueError(INVALID_CRITICAL_COUNT))
         if time_to_recover < 0:
-            raise ExceptionGroup(VALIDATIONS_FAILED, ValueError(INVALID_RECOVERY_TIME))
+            errors.append(ValueError(INVALID_RECOVERY_TIME))
+
+        if len(errors) == 1:
+            raise errors[0]
+        elif len(errors) > 1:
+            raise ExceptionGroup(VALIDATIONS_FAILED, errors)
 
         self.critical_count = critical_count
         self.time_to_recover = time_to_recover
@@ -51,7 +57,7 @@ class CircuitBreaker:
         def wrapper(*args, **kwargs):
             self._check_state(func)
             try:
-                result = func(args, kwargs)
+                result = func(*args, **kwargs)
             except self.triggers_on as exception:
                 self._handle_failure(func, exception)
                 raise
