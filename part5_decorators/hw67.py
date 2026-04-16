@@ -24,8 +24,7 @@ class CallableWithMeta(Protocol[P, R_co]):
 class BreakerError(Exception):
     def __init__(self, func: CallableWithMeta[P, R_co], block_time: datetime.datetime):
         super().__init__(TOO_MUCH)
-        module_name = func.__globals__.get('__name__', func.__module__)
-        self.func_name = f"{module_name}.{func.__name__}"
+        self.func_name = f"{func.__module__}.{func.__name__}"
         self.block_time = block_time
 
 
@@ -70,7 +69,7 @@ class CircuitBreaker:
     def _check_state(self, func):
         if self.block_time is None:
             return
-        current_time = datetime.datetime.now()
+        current_time = datetime.datetime.now(datetime.UTC)
         if (current_time - self.block_time).total_seconds() < self.time_to_recover:
             raise BreakerError(func, self.block_time)
         self._reset_state()
@@ -78,7 +77,7 @@ class CircuitBreaker:
     def _handle_failure(self, func: CallableWithMeta[P, R_co], exception: Exception) -> None:
         self.count_of_exceptions += 1
         if self.count_of_exceptions >= self.critical_count:
-            self.block_time = datetime.datetime.now()
+            self.block_time = datetime.datetime.now(datetime.UTC)
             raise BreakerError(func, self.block_time) from exception
         raise exception  #
 
