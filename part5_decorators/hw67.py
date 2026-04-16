@@ -1,5 +1,5 @@
-import json
 import datetime
+import json
 from functools import wraps
 from typing import Any, ParamSpec, Protocol, TypeVar
 from urllib.request import urlopen
@@ -66,7 +66,7 @@ class CircuitBreaker:
 
         return wrapper
 
-    def _check_state(self, func):
+    def _check_state(self, func) -> None: #
         if self.block_time is None:
             return
         current_time = datetime.datetime.now(datetime.UTC)
@@ -79,9 +79,9 @@ class CircuitBreaker:
         if self.count_of_exceptions >= self.critical_count:
             self.block_time = datetime.datetime.now(datetime.UTC)
             raise BreakerError(func, self.block_time) from exception
-        raise exception  #
+        raise exception
 
-    def _reset_state(self):
+    def _reset_state(self) -> None:
         self.block_time = None
         self.count_of_exceptions = 0
 
