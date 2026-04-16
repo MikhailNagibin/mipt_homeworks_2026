@@ -66,7 +66,7 @@ class CircuitBreaker:
 
         return wrapper
 
-    def _check_state(self, func) -> None: #
+    def _check_state(self, func: CallableWithMeta[P, R_co]) -> None:
         if self.block_time is None:
             return
         current_time = datetime.datetime.now(datetime.UTC)
