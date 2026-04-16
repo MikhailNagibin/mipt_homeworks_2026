@@ -38,7 +38,7 @@ class CircuitBreaker:
         errors = []
         if critical_count <= 0:
             errors.append(ValueError(INVALID_CRITICAL_COUNT))
-        if time_to_recover < 0:
+        if time_to_recover <= 0:
             errors.append(ValueError(INVALID_RECOVERY_TIME))
 
         if len(errors) == 1:
@@ -75,11 +75,12 @@ class CircuitBreaker:
             raise BreakerError(func, self.block_time)
         self._reset_state()
 
-    def _handle_failure(self, func: CallableWithMeta[P, R_co], exception : Exception) -> None:
+    def _handle_failure(self, func: CallableWithMeta[P, R_co], exception: Exception) -> None:
         self.count_of_exceptions += 1
         if self.count_of_exceptions >= self.critical_count:
             self.block_time = datetime.datetime.now()
             raise BreakerError(func, self.block_time) from exception
+        raise exception  #
 
     def _reset_state(self):
         self.block_time = None
