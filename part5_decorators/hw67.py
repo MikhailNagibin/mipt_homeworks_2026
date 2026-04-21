@@ -47,9 +47,7 @@ class CircuitBreaker:
         if not issubclass(triggers_on, Exception):
             errors.append(ValueError(INVALID_TRIGERS_ON))
 
-        if len(errors) == 1:
-            raise errors[0]
-        if len(errors) > 1:
+        if errors:
             raise ExceptionGroup(VALIDATIONS_FAILED, errors)
 
         self.critical_count = critical_count
