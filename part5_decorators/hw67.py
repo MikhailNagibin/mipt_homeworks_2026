@@ -44,12 +44,12 @@ class CircuitBreaker:
         if time_to_recover <= 0:
             errors.append(ValueError(INVALID_RECOVERY_TIME))
 
-        if issubclass(triggers_on, Exception):
+        if not issubclass(triggers_on, Exception):
             errors.append(ValueError(INVALID_TRIGERS_ON))
 
         if len(errors) == 1:
             raise errors[0]
-        elif len(errors) > 1:
+        if len(errors) > 1:
             raise ExceptionGroup(VALIDATIONS_FAILED, errors)
 
         self.critical_count = critical_count
