@@ -6,6 +6,7 @@ from urllib.request import urlopen
 
 INVALID_CRITICAL_COUNT = "Breaker count must be positive integer!"
 INVALID_RECOVERY_TIME = "Breaker recovery time must be positive integer!"
+INVALID_TRIGERS_ON = "Trigers on must be subclass of exception"
 VALIDATIONS_FAILED = "Invalid decorator args."
 TOO_MUCH = "Too much requests, just wait."
 
@@ -43,7 +44,12 @@ class CircuitBreaker:
         if time_to_recover <= 0:
             errors.append(ValueError(INVALID_RECOVERY_TIME))
 
-        if errors:
+        if issubclass(triggers_on, Exception):
+            errors.append(ValueError(INVALID_TRIGERS_ON))
+
+        if len(errors):
+            raise errors[0]
+        elif len(errors) > 1:
             raise ExceptionGroup(VALIDATIONS_FAILED, errors)
 
         self.critical_count = critical_count
