@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import sys
 from typing import Any
 
 UNKNOWN_COMMAND_MSG = "Unknown command!"
@@ -37,7 +36,7 @@ financial_transactions_storage: list[Any] = []
 
 
 def cost_categories_handler() -> str:
-    result_lines = []
+    result_lines: list[str] = []
     for main_cat, subcats in EXPENSE_CATEGORIES.items():
         result_lines.extend(f"{main_cat}::{sub}" for sub in subcats)
     return "\n".join(result_lines)
@@ -183,10 +182,7 @@ def stats_handler(date_str: str) -> str:
 def main() -> None:
     while True:
         try:
-            line = sys.stdin.readline()
-            if not line:
-                break
-            line = line.strip()
+            line = input()
             if not line:
                 continue
             parts = line.split()
@@ -197,20 +193,20 @@ def main() -> None:
                 try:
                     amt = float(args[0].replace(",", "."))
                 except ValueError:
-                    sys.stdout.write(UNKNOWN_COMMAND_MSG + "\n")
+                    print(UNKNOWN_COMMAND_MSG)
                     continue
-                sys.stdout.write(income_handler(amt, args[1]) + "\n")
+                print(income_handler(amt, args[1]))
             elif cmd == "cost" and len(args) == EXPECTED_COST_ARGS:
                 try:
                     amt = float(args[1].replace(",", "."))
                 except ValueError:
-                    sys.stdout.write(UNKNOWN_COMMAND_MSG + "\n")
+                    print(UNKNOWN_COMMAND_MSG)
                     continue
-                sys.stdout.write(cost_handler(args[0], amt, args[2]) + "\n")
+                print(cost_handler(args[0], amt, args[2]))
             elif cmd == "stats" and len(args) == EXPECTED_STATS_ARGS:
-                sys.stdout.write(stats_handler(args[0]) + "\n")
+                print(stats_handler(args[0]))
             else:
-                sys.stdout.write(UNKNOWN_COMMAND_MSG + "\n")
+                print(UNKNOWN_COMMAND_MSG)
         except (EOFError, KeyboardInterrupt):
             break
 
