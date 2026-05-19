@@ -4,7 +4,7 @@ UNKNOWN_COMMAND_MSG = "Unknown command!"
 NONPOSITIVE_VALUE_MSG = "Value must be greater than zero!"
 INCORRECT_DATE_MSG = "Invalid date!"
 OP_SUCCESS_MSG = "Added"
-
+CATEGORY_NOT_EXISTS_MSG = "Category not exists!"
 EXPECTED_INCOME_ARGS = 2
 EXPECTED_COST_ARGS = 3
 EXPECTED_STATS_ARGS = 1
@@ -12,6 +12,26 @@ DATE_PARTS_COUNT = 3
 MIN_MONTH = 1
 MAX_MONTH = 12
 MIN_DAY = 1
+
+EXPENSE_CATEGORIES = {
+    "Food": ["Supermarket", "Restaurants", "FastFood", "Coffee", "Delivery"],
+    "Transport": ["Taxi", "Public transport"],
+    "Housing": ["Furniture"],
+    "Health": ["Pharmacy", "Doctors", "Dentist", "Lab tests"],
+    "Entertainment": ["Movies", "Concerts", "Games", "Subscriptions"],
+    "Clothing": ["Outerwear", "Casual", "Shoes", "Accessories"],
+    "Education": ["Courses", "Books", "Tutors"],
+    "Communications": ["Mobile", "Internet", "Subscriptions"],
+    "Other": ["SomeCategory", "SomeOtherCategory"],
+}
+
+
+def cost_categories_handler() -> str:
+    result = []
+    for category, subcategories in EXPENSE_CATEGORIES.items():
+        for subcategory in subcategories:
+            result.append(f"{category}::{subcategory}")
+    return "\n".join(result)
 
 
 class Data:
@@ -73,7 +93,7 @@ class Data:
                     monthly_expenses += day_total
                     for category, cat_amount in categories.items():
                         monthly_costs_by_category[category] = (
-                            monthly_costs_by_category.get(category, 0) + cat_amount
+                                monthly_costs_by_category.get(category, 0) + cat_amount
                         )
 
         return {
@@ -88,13 +108,16 @@ class Handler:
     def __init__(self):
         self.data = Data()
         while True:
-            command_line = input().strip()
-            if not command_line:
-                continue
-            parts = command_line.split()
-            command = parts[0]
-            details = parts[1:] if len(parts) > 1 else []
-            self.handler(command, details)
+            try:
+                command_line = input().strip()
+                if not command_line:
+                    continue
+                parts = command_line.split()
+                command = parts[0]
+                details = parts[1:] if len(parts) > 1 else []
+                self.handler(command, details)
+            except EOFError:
+                break
 
     def _parse_float(self, value: str) -> float | None:
         value = value.replace(",", ".")
@@ -112,6 +135,12 @@ class Handler:
             if not part or not part.isdigit():
                 return False
         return True
+
+    def _validate_category(self, category: str) -> bool:
+        if "::" not in category:
+            return False
+        main_cat, sub_cat = category.split("::", 1)
+        return main_cat in EXPENSE_CATEGORIES and sub_cat in EXPENSE_CATEGORIES[main_cat]
 
     def handler(self, command: str, details: list):
         match command:
@@ -144,7 +173,7 @@ class Handler:
             print(NONPOSITIVE_VALUE_MSG)
             return
 
-        formatted_date = "-".join(map(str, date_tuple))
+        formatted_date = f"{date_tuple[0]:02d}-{date_tuple[1]:02d}-{date_tuple[2]}"
         self.data.add_income(formatted_date, amount)
         print(OP_SUCCESS_MSG)
 
@@ -155,8 +184,8 @@ class Handler:
 
         category, amount_str, date_str = details
 
-        if not category or " " in category or "." in category or "," in category:
-            print(UNKNOWN_COMMAND_MSG)
+        if not self._validate_category(category):
+            print(CATEGORY_NOT_EXISTS_MSG)
             return
 
         date_tuple = extract_date(date_str)
@@ -172,7 +201,7 @@ class Handler:
             print(NONPOSITIVE_VALUE_MSG)
             return
 
-        formatted_date = "-".join(map(str, date_tuple))
+        formatted_date = f"{date_tuple[0]:02d}-{date_tuple[1]:02d}-{date_tuple[2]}"
         self.data.add_cost(formatted_date, category, amount)
         print(OP_SUCCESS_MSG)
 
@@ -190,21 +219,21 @@ class Handler:
 
         day, month, year = date_tuple
         print(f"Ваша статистика по состоянию на {day:02d}-{month:02d}-{year}:")
-        print(f"Суммарный капитал: {stats["capital"]:.2f} рублей")
+        print(f"Суммарный капитал: {stats['capital']:.2f} рублей")
 
-        profit = stats["monthly_income"] - stats["monthly_expenses"]
+        profit = stats['monthly_income'] - stats['monthly_expenses']
         if profit >= 0:
             print(f"Месячная прибыль составила {profit:.2f} рублей")
         else:
             print(f"Месячный убыток составил {abs(profit):.2f} рублей")
 
-        print(f"Доходы: {stats["monthly_income"]:.2f} рублей")
-        print(f"Расходы: {stats["monthly_expenses"]:.2f} рублей")
+        print(f"Доходы: {stats['monthly_income']:.2f} рублей")
+        print(f"Расходы: {stats['monthly_expenses']:.2f} рублей")
         print()
         print("Детализация (категория: сумма):")
 
-        if stats["categories"]:
-            sorted_categories = sorted(stats["categories"].items())
+        if stats['categories']:
+            sorted_categories = sorted(stats['categories'].items())
             for i, (category, amount) in enumerate(sorted_categories, 1):
                 print(f"{i}. {category}: {amount:.2f}")
         else:
@@ -269,7 +298,7 @@ def extract_date(maybe_dt: str) -> tuple[int, int, int] | None:
         print(INCORRECT_DATE_MSG)
         return None
 
-    return date_parts
+    return day, month, year
 
 
 def main() -> None:
@@ -278,4 +307,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
