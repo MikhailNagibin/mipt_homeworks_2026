@@ -59,7 +59,8 @@ def parse_date(date_str: str) -> tuple[int, int, int] | None:
     if month < 1 or month > 12:
         return None
 
-    days_in_month = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    days_in_month = [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31,
+                     30, 31, 30, 31]
     if day < 1 or day > days_in_month[month - 1]:
         return None
 
@@ -227,8 +228,9 @@ class Handler:
             return
 
         date_tuple = parse_date(date_str)
-        formatted_date = f"{date_tuple[0]:02d}-{date_tuple[1]:02d}-{date_tuple[2]}"
-        self.data.add_income(formatted_date, amount)
+        if date_tuple is not None:
+            formatted_date = f"{date_tuple[0]:02d}-{date_tuple[1]:02d}-{date_tuple[2]}"
+            self.data.add_income(formatted_date, amount)
         print(OP_SUCCESS_MSG)
 
     def _cost(self, details: list):
@@ -249,9 +251,44 @@ class Handler:
             return
 
         date_tuple = parse_date(date_str)
-        formatted_date = f"{date_tuple[0]:02d}-{date_tuple[1]:02d}-{date_tuple[2]}"
-        self.data.add_cost(formatted_date, category, amount)
+        if date_tuple is not None:
+            formatted_date = f"{date_tuple[0]:02d}-{date_tuple[1]:02d}-{date_tuple[2]}"
+            self.data.add_cost(formatted_date, category, amount)
         print(OP_SUCCESS_MSG)
+
+    def stats_handler(self, date_str: str) -> str:
+        date_tuple = parse_date(date_str)
+        if date_tuple is None:
+            return INCORRECT_DATE_MSG
+
+        stats = self.data.get_stats(date_tuple)
+
+        day, month, year = date_tuple
+        total_capital = stats['capital']
+        monthly_income = stats['monthly_income']
+        monthly_expenses = stats['monthly_expenses']
+
+        profit = monthly_income - monthly_expenses
+        amount_word = "прибыль" if profit >= 0 else "убыток"
+
+        category_details_lines = []
+        if stats['categories']:
+            sorted_categories = sorted(stats['categories'].items())
+            for i, (category, amount) in enumerate(sorted_categories, 1):
+                category_details_lines.append(f"{i}. {category}: {amount:.2f}")
+
+        category_details = "\n".join(category_details_lines) if category_details_lines else ""
+
+        result = f"""Ваша статистика по состоянию на {day:02d}-{month:02d}-{year}:
+Суммарный капитал: {total_capital:.2f} рублей
+В этом месяце {amount_word} составила {abs(profit):.2f} рублей.
+Доходы: {monthly_income:.2f} рублей
+Расходы: {monthly_expenses:.2f} рублей
+
+Детализация (категория: сумма):
+{category_details}"""
+
+        return result
 
     def _stats(self, details: list):
         if len(details) != EXPECTED_STATS_ARGS:
@@ -259,34 +296,13 @@ class Handler:
             return
 
         date_str = details[0]
-        date_tuple = parse_date(date_str)
-        if date_tuple is None:
-            print(INCORRECT_DATE_MSG)
-            return
+        result = self.stats_handler(date_str)
+        print(result)
 
-        stats = self.data.get_stats(date_tuple)
 
-        day, month, year = date_tuple
-        print(f"Ваша статистика по состоянию на {day:02d}-{month:02d}-{year}:")
-        print(f"Суммарный капитал: {stats['capital']:.2f} рублей")
-
-        profit = stats['monthly_income'] - stats['monthly_expenses']
-        if profit >= 0:
-            print(f"Месячная прибыль составила {profit:.2f} рублей")
-        else:
-            print(f"Месячный убыток составил {abs(profit):.2f} рублей")
-
-        print(f"Доходы: {stats['monthly_income']:.2f} рублей")
-        print(f"Расходы: {stats['monthly_expenses']:.2f} рублей")
-        print()
-        print("Детализация (категория: сумма):")
-
-        if stats['categories']:
-            sorted_categories = sorted(stats['categories'].items())
-            for i, (category, amount) in enumerate(sorted_categories, 1):
-                print(f"{i}. {category}: {amount:.2f}")
-        else:
-            print()
+def stats_handler(date_str: str) -> str:
+    handler = Handler()
+    return handler.stats_handler(date_str)
 
 
 def main() -> None:
