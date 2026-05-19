@@ -8,6 +8,10 @@ NOT_EXISTS_CATEGORY = "Category not exists!"
 EXPECTED_INCOME_ARGS = 2
 EXPECTED_COST_ARGS = 3
 EXPECTED_STATS_ARGS = 1
+DATE_PARTS_COUNT = 3
+MIN_MONTH = 1
+MAX_MONTH = 12
+MIN_DAY = 1
 
 EXPENSE_CATEGORIES = {
     "Food": ["Supermarket", "Restaurants", "FastFood", "Coffee", "Delivery"],
@@ -40,151 +44,281 @@ def validate_category(category: str) -> bool:
 
 
 def parse_date(date_str: str) -> tuple[int, int, int] | None:
+    """Парсит дату из строки DD-MM-YYYY"""
     parts = date_str.split("-")
     if len(parts) != 3:
         return None
+
     try:
         day = int(parts[0])
         month = int(parts[1])
         year = int(parts[2])
     except ValueError:
         return None
+
     if month < 1 or month > 12:
         return None
+
     if month == 2:
         is_leap = (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
         max_day = 29 if is_leap else 28
-    elif month in (4, 6, 9, 11):
+    elif month in [4, 6, 9, 11]:
         max_day = 30
     else:
         max_day = 31
+
     if day < 1 or day > max_day:
         return None
+
     return (day, month, year)
-
-
-def income_handler(amount: float, date_str: str) -> str:
-    if amount <= 0:
-        return NONPOSITIVE_VALUE_MSG
-    date_tuple = parse_date(date_str)
-    if date_tuple is None:
-        return INCORRECT_DATE_MSG
-    financial_transactions_storage.append({
-        "type": "income",
-        "amount": amount,
-        "date": date_tuple
-    })
-    return OP_SUCCESS_MSG
 
 
 def cost_handler(category: str, amount: float, date_str: str) -> str:
     if not validate_category(category):
         return NOT_EXISTS_CATEGORY
+
     if amount <= 0:
         return NONPOSITIVE_VALUE_MSG
+
     date_tuple = parse_date(date_str)
     if date_tuple is None:
         return INCORRECT_DATE_MSG
+
     financial_transactions_storage.append({
         "type": "cost",
         "category": category,
         "amount": amount,
         "date": date_tuple
     })
+
     return OP_SUCCESS_MSG
 
 
-def stats_handler(date_str: str) -> str:
-    target = parse_date(date_str)
-    if target is None:
+def income_handler(amount: float, date_str: str) -> str:
+    if amount <= 0:
+        return NONPOSITIVE_VALUE_MSG
+
+    date_tuple = parse_date(date_str)
+    if date_tuple is None:
         return INCORRECT_DATE_MSG
-    target_day, target_month, target_year = target
 
-    total_capital = 0.0
-    monthly_income = 0.0
-    monthly_expenses = 0.0
-    monthly_costs = {}
+    financial_transactions_storage.append({
+        "type": "income",
+        "amount": amount,
+        "date": date_tuple
+    })
 
-    for t in financial_transactions_storage:
-        d, m, y = t["date"]
-        if y < target_year:
-            before = True
-        elif y > target_year:
-            before = False
+    return OP_SUCCESS_MSG
+
+
+class Data:
+    def __init__(self):
+        self._cost = {}
+        self._income = {}
+
+    def add_income(self, date: str, amount: float):
+        if date not in self._income:
+            self._income[date] = 0
+        self._income[date] += amount
+
+    def add_cost(self, date: str, category: str, amount: float):
+        if date not in self._cost:
+            self._cost[date] = {}
+        if category not in self._cost[date]:
+            self._cost[date][category] = 0
+        self._cost[date][category] += amount
+
+    def _is_before(self, date_parts: tuple, target_parts: tuple) -> bool:
+        day, month, year = date_parts
+        t_day, t_month, t_year = target_parts
+
+        if year < t_year:
+            return True
+        if year > t_year:
+            return False
+        if month < t_month:
+            return True
+        if month > t_month:
+            return False
+        return day <= t_day
+
+    def get_stats(self, target_date: tuple[int, int, int]):
+        target_day, target_month, target_year = target_date
+        target_parts = (target_day, target_month, target_year)
+
+        total_capital = 0
+        monthly_income = 0
+        monthly_expenses = 0
+        monthly_costs_by_category = {}
+
+        for date_str, amount in self._income.items():
+            date_parts = tuple(map(int, date_str.split("-")))
+            if self._is_before(date_parts, target_parts):
+                total_capital += amount
+                _, month, year = date_parts
+                if year == target_year and month == target_month:
+                    monthly_income += amount
+
+        for date_str, categories in self._cost.items():
+            date_parts = tuple(map(int, date_str.split("-")))
+            if self._is_before(date_parts, target_parts):
+                day_total = sum(categories.values())
+                total_capital -= day_total
+
+                _, month, year = date_parts
+                if year == target_year and month == target_month:
+                    monthly_expenses += day_total
+                    for category, cat_amount in categories.items():
+                        monthly_costs_by_category[category] = (
+                                monthly_costs_by_category.get(category, 0) + cat_amount
+                        )
+
+        return {
+            "capital": total_capital,
+            "monthly_income": monthly_income,
+            "monthly_expenses": monthly_expenses,
+            "categories": monthly_costs_by_category,
+        }
+
+
+class Handler:
+    def __init__(self):
+        self.data = Data()
+        while True:
+            try:
+                command_line = input().strip()
+                if not command_line:
+                    continue
+                parts = command_line.split()
+                command = parts[0]
+                details = parts[1:] if len(parts) > 1 else []
+                self.handler(command, details)
+            except EOFError:
+                break
+            except KeyboardInterrupt:
+                break
+
+    def _parse_float(self, value: str) -> float | None:
+        value = value.replace(",", ".")
+        try:
+            return float(value)
+        except ValueError:
+            return None
+
+    def handler(self, command: str, details: list):
+        match command:
+            case "income":
+                self._income(details)
+            case "cost":
+                self._cost(details)
+            case "stats":
+                self._stats(details)
+            case _:
+                print(UNKNOWN_COMMAND_MSG)
+
+    def _income(self, details: list):
+        if len(details) != EXPECTED_INCOME_ARGS:
+            print(UNKNOWN_COMMAND_MSG)
+            return
+
+        amount_str, date_str = details
+
+        amount = self._parse_float(amount_str)
+        if amount is None:
+            print(UNKNOWN_COMMAND_MSG)
+            return
+
+        result = income_handler(amount, date_str)
+        if result != OP_SUCCESS_MSG:
+            print(result)
+            return
+
+        date_tuple = parse_date(date_str)
+        if date_tuple is not None:
+            formatted_date = f"{date_tuple[0]:02d}-{date_tuple[1]:02d}-{date_tuple[2]}"
+            self.data.add_income(formatted_date, amount)
+        print(OP_SUCCESS_MSG)
+
+    def _cost(self, details: list):
+        if len(details) != EXPECTED_COST_ARGS:
+            print(UNKNOWN_COMMAND_MSG)
+            return
+
+        category, amount_str, date_str = details
+
+        amount = self._parse_float(amount_str)
+        if amount is None:
+            print(UNKNOWN_COMMAND_MSG)
+            return
+
+        result = cost_handler(category, amount, date_str)
+        if result != OP_SUCCESS_MSG:
+            print(result)
+            return
+
+        date_tuple = parse_date(date_str)
+        if date_tuple is not None:
+            formatted_date = f"{date_tuple[0]:02d}-{date_tuple[1]:02d}-{date_tuple[2]}"
+            self.data.add_cost(formatted_date, category, amount)
+        print(OP_SUCCESS_MSG)
+
+    def stats_handler(self, date_str: str) -> str:
+        date_tuple = parse_date(date_str)
+        if date_tuple is None:
+            return INCORRECT_DATE_MSG
+
+        stats = self.data.get_stats(date_tuple)
+
+        day, month, year = date_tuple
+        total_capital = stats['capital']
+        monthly_income = stats['monthly_income']
+        monthly_expenses = stats['monthly_expenses']
+
+        profit = monthly_income - monthly_expenses
+        if profit >= 0:
+            amount_word = "profit"
         else:
-            if m < target_month:
-                before = True
-            elif m > target_month:
-                before = False
-            else:
-                before = d <= target_day
-        if not before:
-            continue
+            amount_word = "loss"
 
-        if t["type"] == "income":
-            total_capital += t["amount"]
-            if y == target_year and m == target_month:
-                monthly_income += t["amount"]
-        else:
-            total_capital -= t["amount"]
-            if y == target_year and m == target_month:
-                monthly_expenses += t["amount"]
-                cat = t["category"]
-                monthly_costs[cat] = monthly_costs.get(cat, 0.0) + t["amount"]
+        category_details_lines = []
+        if stats['categories']:
+            sorted_categories = sorted(stats['categories'].items())
+            for i, (category, amount) in enumerate(sorted_categories, 1):
+                category_details_lines.append(f"{i}. {category}: {amount:.2f}")
 
-    total_capital = round(total_capital, 2)
-    monthly_income = round(monthly_income, 2)
-    monthly_expenses = round(monthly_expenses, 2)
-    amount_word = "loss" if total_capital < 0 else "profit"
+        category_details = "\n".join(category_details_lines) if category_details_lines else ""
 
-    lines = []
-    if monthly_costs:
-        for i, (cat, amt) in enumerate(sorted(monthly_costs.items()), 1):
-            lines.append(f"{i}. {cat}: {amt:.2f}")
-    category_details = "\n".join(lines)
+        result = f"""Your statistics as of {day:02d}-{month:02d}-{year}:
+Total capital: {total_capital:.2f} rubles
+This month, the {amount_word} amounted to {abs(profit):.2f} rubles.
+Income: {monthly_income:.2f} rubles
+Expenses: {monthly_expenses:.2f} rubles
 
-    date_str_fmt = f"{target_day:02d}-{target_month:02d}-{target_year}"
-    return (
-        f"Your statistics as of {date_str_fmt}:\n"
-        f"Total capital: {total_capital:.2f} rubles\n"
-        f"This month, the {amount_word} amounted to {total_capital:.2f} rubles.\n"
-        f"Income: {monthly_expenses:.2f} rubles\n"
-        f"Expenses: {monthly_income:.2f} rubles\n\n"
-        f"Details (category: amount):\n"
-        f"{category_details}"
-    )
+Details (category: amount):
+{category_details}"""
+
+        if not category_details:
+            result = result.rstrip()
+
+        return result
+
+    def _stats(self, details: list):
+        if len(details) != EXPECTED_STATS_ARGS:
+            print(UNKNOWN_COMMAND_MSG)
+            return
+
+        date_str = details[0]
+        result = self.stats_handler(date_str)
+        print(result)
+
+
+def stats_handler(date_str: str) -> str:
+    handler = Handler()
+    return handler.stats_handler(date_str)
 
 
 def main() -> None:
-    while True:
-        try:
-            line = input().strip()
-            if not line:
-                continue
-            parts = line.split()
-            cmd = parts[0]
-            args = parts[1:]
-
-            if cmd == "income" and len(args) == 2:
-                try:
-                    amt = float(args[0].replace(",", "."))
-                except ValueError:
-                    print(UNKNOWN_COMMAND_MSG)
-                    continue
-                print(income_handler(amt, args[1]))
-            elif cmd == "cost" and len(args) == 3:
-                try:
-                    amt = float(args[1].replace(",", "."))
-                except ValueError:
-                    print(UNKNOWN_COMMAND_MSG)
-                    continue
-                print(cost_handler(args[0], amt, args[2]))
-            elif cmd == "stats" and len(args) == 1:
-                print(stats_handler(args[0]))
-            else:
-                print(UNKNOWN_COMMAND_MSG)
-        except (EOFError, KeyboardInterrupt):
-            break
+    Handler()
 
 
 if __name__ == "__main__":
