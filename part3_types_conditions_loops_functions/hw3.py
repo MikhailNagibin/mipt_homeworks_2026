@@ -4,7 +4,7 @@ UNKNOWN_COMMAND_MSG = "Unknown command!"
 NONPOSITIVE_VALUE_MSG = "Value must be greater than zero!"
 INCORRECT_DATE_MSG = "Invalid date!"
 OP_SUCCESS_MSG = "Added"
-CATEGORY_NOT_EXISTS_MSG = "Category not exists!"
+NOT_EXISTS_CATEGORY = "Category not exists!"
 EXPECTED_INCOME_ARGS = 2
 EXPECTED_COST_ARGS = 3
 EXPECTED_STATS_ARGS = 1
@@ -15,8 +15,8 @@ MIN_DAY = 1
 
 EXPENSE_CATEGORIES = {
     "Food": ["Supermarket", "Restaurants", "FastFood", "Coffee", "Delivery"],
-    "Transport": ["Taxi", "Public transport"],
-    "Housing": ["Furniture"],
+    "Transport": ["Taxi", "Public transport", "Gas", "Car service"],
+    "Housing": ["Rent", "Utilities", "Repairs", "Furniture"],
     "Health": ["Pharmacy", "Doctors", "Dentist", "Lab tests"],
     "Entertainment": ["Movies", "Concerts", "Games", "Subscriptions"],
     "Clothing": ["Outerwear", "Casual", "Shoes", "Accessories"],
@@ -25,6 +25,8 @@ EXPENSE_CATEGORIES = {
     "Other": ["SomeCategory", "SomeOtherCategory"],
 }
 
+financial_transactions_storage = []
+
 
 def cost_categories_handler() -> str:
     result = []
@@ -32,6 +34,74 @@ def cost_categories_handler() -> str:
         for subcategory in subcategories:
             result.append(f"{category}::{subcategory}")
     return "\n".join(result)
+
+
+def validate_category(category: str) -> bool:
+    if "::" not in category:
+        return False
+    main_cat, sub_cat = category.split("::", 1)
+    return main_cat in EXPENSE_CATEGORIES and sub_cat in EXPENSE_CATEGORIES[main_cat]
+
+
+def parse_date(date_str: str) -> tuple[int, int, int] | None:
+    """Парсит дату из строки DD-MM-YYYY"""
+    parts = date_str.split("-")
+    if len(parts) != 3:
+        return None
+
+    try:
+        day = int(parts[0])
+        month = int(parts[1])
+        year = int(parts[2])
+    except ValueError:
+        return None
+
+    if month < 1 or month > 12:
+        return None
+
+    days_in_month = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    if day < 1 or day > days_in_month[month - 1]:
+        return None
+
+    return (day, month, year)
+
+
+def cost_handler(category: str, amount: float, date_str: str) -> str:
+    if not validate_category(category):
+        return NOT_EXISTS_CATEGORY
+
+    if amount <= 0:
+        return NONPOSITIVE_VALUE_MSG
+
+    date_tuple = parse_date(date_str)
+    if date_tuple is None:
+        return INCORRECT_DATE_MSG
+
+    financial_transactions_storage.append({
+        "type": "cost",
+        "category": category,
+        "amount": amount,
+        "date": date_str
+    })
+
+    return OP_SUCCESS_MSG
+
+
+def income_handler(amount: float, date_str: str) -> str:
+    if amount <= 0:
+        return NONPOSITIVE_VALUE_MSG
+
+    date_tuple = parse_date(date_str)
+    if date_tuple is None:
+        return INCORRECT_DATE_MSG
+
+    financial_transactions_storage.append({
+        "type": "income",
+        "amount": amount,
+        "date": date_str
+    })
+
+    return OP_SUCCESS_MSG
 
 
 class Data:
@@ -118,29 +188,15 @@ class Handler:
                 self.handler(command, details)
             except EOFError:
                 break
+            except KeyboardInterrupt:
+                break
 
     def _parse_float(self, value: str) -> float | None:
         value = value.replace(",", ".")
-        if not self._is_float(value):
+        try:
+            return float(value)
+        except ValueError:
             return None
-        return float(value)
-
-    def _is_float(self, value: str) -> bool:
-        if value.startswith("-"):
-            value = value[1:]
-        parts = value.split(".")
-        if len(parts) > 2:
-            return False
-        for part in parts:
-            if not part or not part.isdigit():
-                return False
-        return True
-
-    def _validate_category(self, category: str) -> bool:
-        if "::" not in category:
-            return False
-        main_cat, sub_cat = category.split("::", 1)
-        return main_cat in EXPENSE_CATEGORIES and sub_cat in EXPENSE_CATEGORIES[main_cat]
 
     def handler(self, command: str, details: list):
         match command:
@@ -160,19 +216,17 @@ class Handler:
 
         amount_str, date_str = details
 
-        date_tuple = extract_date(date_str)
-        if date_tuple is None:
-            return
-
         amount = self._parse_float(amount_str)
         if amount is None:
             print(UNKNOWN_COMMAND_MSG)
             return
 
-        if amount <= 0:
-            print(NONPOSITIVE_VALUE_MSG)
+        result = income_handler(amount, date_str)
+        if result != OP_SUCCESS_MSG:
+            print(result)
             return
 
+        date_tuple = parse_date(date_str)
         formatted_date = f"{date_tuple[0]:02d}-{date_tuple[1]:02d}-{date_tuple[2]}"
         self.data.add_income(formatted_date, amount)
         print(OP_SUCCESS_MSG)
@@ -184,23 +238,17 @@ class Handler:
 
         category, amount_str, date_str = details
 
-        if not self._validate_category(category):
-            print(CATEGORY_NOT_EXISTS_MSG)
-            return
-
-        date_tuple = extract_date(date_str)
-        if date_tuple is None:
-            return
-
         amount = self._parse_float(amount_str)
         if amount is None:
             print(UNKNOWN_COMMAND_MSG)
             return
 
-        if amount <= 0:
-            print(NONPOSITIVE_VALUE_MSG)
+        result = cost_handler(category, amount, date_str)
+        if result != OP_SUCCESS_MSG:
+            print(result)
             return
 
+        date_tuple = parse_date(date_str)
         formatted_date = f"{date_tuple[0]:02d}-{date_tuple[1]:02d}-{date_tuple[2]}"
         self.data.add_cost(formatted_date, category, amount)
         print(OP_SUCCESS_MSG)
@@ -211,8 +259,9 @@ class Handler:
             return
 
         date_str = details[0]
-        date_tuple = extract_date(date_str)
+        date_tuple = parse_date(date_str)
         if date_tuple is None:
+            print(INCORRECT_DATE_MSG)
             return
 
         stats = self.data.get_stats(date_tuple)
@@ -238,67 +287,6 @@ class Handler:
                 print(f"{i}. {category}: {amount:.2f}")
         else:
             print()
-
-
-def is_leap_year(year: int) -> bool:
-    """
-    Для заданного года определяет: високосный (True) или невисокосный (False).
-    """
-    by_four = year % 4 == 0
-    by_hundred = year % 100 == 0
-    by_four_hundred = year % 400 == 0
-    return (by_four and not by_hundred) or by_four_hundred
-
-
-def _get_days_in_month(month: int, year: int) -> int:
-    days = [31, 29 if is_leap_year(year) else 28, 31, 30, 31, 30,
-            31, 31, 30, 31, 30, 31]
-    return days[month - 1]
-
-
-def _is_digit_string(s: str) -> bool:
-    if not s:
-        return False
-    for char in s:
-        if char < "0" or char > "9":
-            return False
-    return True
-
-
-def _validate_date_parts(parts: list[str]) -> tuple[int, int, int] | None:
-    if len(parts) != DATE_PARTS_COUNT:
-        return None
-
-    for part in parts:
-        if not _is_digit_string(part):
-            return None
-
-    return (int(parts[0]), int(parts[1]), int(parts[2]))
-
-
-def extract_date(maybe_dt: str) -> tuple[int, int, int] | None:
-    """
-    Парсит дату формата DD-MM-YYYY из строки.
-    """
-    parts = maybe_dt.split("-")
-
-    date_parts = _validate_date_parts(parts)
-    if date_parts is None:
-        print(INCORRECT_DATE_MSG)
-        return None
-
-    day, month, year = date_parts
-
-    if month < MIN_MONTH or month > MAX_MONTH:
-        print(INCORRECT_DATE_MSG)
-        return None
-
-    days_in_month = _get_days_in_month(month, year)
-    if day < MIN_DAY or day > days_in_month:
-        print(INCORRECT_DATE_MSG)
-        return None
-
-    return day, month, year
 
 
 def main() -> None:
