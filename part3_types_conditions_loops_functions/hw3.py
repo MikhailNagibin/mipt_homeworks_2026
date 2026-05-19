@@ -193,20 +193,20 @@ def main() -> None:
                 try:
                     amt = float(args[0].replace(",", "."))
                 except ValueError:
-                    print(UNKNOWN_COMMAND_MSG)
+                    print(UNKNOWN_COMMAND_MSG)  # noqa: T201
                     continue
-                print(income_handler(amt, args[1]))
+                print(income_handler(amt, args[1]))  # noqa: T201
             elif cmd == "cost" and len(args) == EXPECTED_COST_ARGS:
                 try:
                     amt = float(args[1].replace(",", "."))
                 except ValueError:
-                    print(UNKNOWN_COMMAND_MSG)
+                    print(UNKNOWN_COMMAND_MSG)  # noqa: T201
                     continue
-                print(cost_handler(args[0], amt, args[2]))
+                print(cost_handler(args[0], amt, args[2]))  # noqa: T201
             elif cmd == "stats" and len(args) == EXPECTED_STATS_ARGS:
-                print(stats_handler(args[0]))
+                print(stats_handler(args[0]))  # noqa: T201
             else:
-                print(UNKNOWN_COMMAND_MSG)
+                print(UNKNOWN_COMMAND_MSG)  # noqa: T201
         except (EOFError, KeyboardInterrupt):
             break
 
