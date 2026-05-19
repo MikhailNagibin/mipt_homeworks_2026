@@ -59,9 +59,15 @@ def parse_date(date_str: str) -> tuple[int, int, int] | None:
     if month < 1 or month > 12:
         return None
 
-    days_in_month = [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31,
-                     30, 31, 30, 31]
-    if day < 1 or day > days_in_month[month - 1]:
+    if month == 2:
+        is_leap = (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
+        max_day = 29 if is_leap else 28
+    elif month in [4, 6, 9, 11]:
+        max_day = 30
+    else:
+        max_day = 31
+
+    if day < 1 or day > max_day:
         return None
 
     return (day, month, year)
@@ -82,7 +88,7 @@ def cost_handler(category: str, amount: float, date_str: str) -> str:
         "type": "cost",
         "category": category,
         "amount": amount,
-        "date": date_str
+        "date": date_tuple
     })
 
     return OP_SUCCESS_MSG
@@ -99,7 +105,7 @@ def income_handler(amount: float, date_str: str) -> str:
     financial_transactions_storage.append({
         "type": "income",
         "amount": amount,
-        "date": date_str
+        "date": date_tuple
     })
 
     return OP_SUCCESS_MSG
@@ -269,7 +275,10 @@ class Handler:
         monthly_expenses = stats['monthly_expenses']
 
         profit = monthly_income - monthly_expenses
-        amount_word = "прибыль" if profit >= 0 else "убыток"
+        if profit >= 0:
+            amount_word = "profit"
+        else:
+            amount_word = "loss"
 
         category_details_lines = []
         if stats['categories']:
@@ -279,14 +288,17 @@ class Handler:
 
         category_details = "\n".join(category_details_lines) if category_details_lines else ""
 
-        result = f"""Ваша статистика по состоянию на {day:02d}-{month:02d}-{year}:
-Суммарный капитал: {total_capital:.2f} рублей
-В этом месяце {amount_word} составила {abs(profit):.2f} рублей.
-Доходы: {monthly_income:.2f} рублей
-Расходы: {monthly_expenses:.2f} рублей
+        result = f"""Your statistics as of {day:02d}-{month:02d}-{year}:
+Total capital: {total_capital:.2f} rubles
+This month, the {amount_word} amounted to {abs(profit):.2f} rubles.
+Income: {monthly_income:.2f} rubles
+Expenses: {monthly_expenses:.2f} rubles
 
-Детализация (категория: сумма):
+Details (category: amount):
 {category_details}"""
+
+        if not category_details:
+            result = result.rstrip()
 
         return result
 
