@@ -33,7 +33,6 @@ def pytest_configure(config) -> None:  # type: ignore[no-untyped-def]
 
 def pytest_collection_modifyitems(config, items) -> None:  # type: ignore[no-untyped-def]
     if config.getoption("--run-optional"):
-        # --run-optional given in cli: do not skip slow tests
         return
     skip_optional = pytest.mark.skip(reason="need --run-optional option to run")
     for item in items:
@@ -151,13 +150,13 @@ def invalid_cost_factory(cost_factory: type[CostFactory]) -> CostBuilder[Cost]:
 
 
 @pytest.fixture
-def incomes_batch(income_factory: type[IncomeFactory]) -> Generator[list[Income]]:
-    yield income_factory.batch(3)
+def incomes_batch(income_factory: type[IncomeFactory]) -> list[Income]:  # возвращаем список, не генератор
+    return income_factory.batch(3)
 
 
 @pytest.fixture
-def costs_batch(cost_factory: type[CostFactory]) -> Generator[list[Cost]]:
-    yield cost_factory.batch(3)
+def costs_batch(cost_factory: type[CostFactory]) -> list[Cost]:
+    return cost_factory.batch(3)
 
 
 @pytest.fixture
@@ -200,7 +199,7 @@ def assert_stats_result(incomes_batch: list[Income], costs_batch: list[Cost]) ->
         enumerated_categories = enumerate(category_details.items())
         category_details_stat_data = [f"{i}. {category}: {amount}" for i, (category, amount) in enumerated_categories]
         amount_word = "loss" if total_capital < 0 else "profit"
-        assert stats_result == STATS_TEMPLATE.format_map(
+        assert stats_result == STATS_TEMPLATE.format_map(  # noqa: S101
             {
                 "stats_date": stats_date.strftime(DATE_FORMAT),
                 "total_capital": total_capital,
