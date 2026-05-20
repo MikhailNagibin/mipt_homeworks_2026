@@ -269,7 +269,7 @@ def handle_income_command(parts: list[str]) -> None:
 
 def handle_cost_command(parts: list[str]) -> None:
     if len(parts) == COST_CATEGORY_PARTS and parts[1] == "categories":
-        print(cost_categories_handler()) # noqa: T201
+        print(cost_categories_handler())  # noqa: T201
         return
     if len(parts) != COST_PARTS:
         print(UNKNOWN_COMMAND_MSG)  # noqa: T201
