@@ -253,26 +253,26 @@ def stats_handler(report_date: str) -> str:
 
 def handle_income_command(parts: list[str]) -> None:
     if len(parts) != INCOME_PARTS:
-        print(UNKNOWN_COMMAND_MSG)
+        print(UNKNOWN_COMMAND_MSG) # NO T201
         return
 
     amount_str = parts[1]
     date_str = parts[2]
     amount = parse_amount(amount_str)
     if amount is None:
-        print(UNKNOWN_COMMAND_MSG)
+        print(UNKNOWN_COMMAND_MSG) # NO T201
         return
 
     result = income_handler(amount, date_str)
-    print(result)
+    print(result) # NO T201
 
 
 def handle_cost_command(parts: list[str]) -> None:
     if len(parts) == COST_CATEGORY_PARTS and parts[1] == "categories":
-        print(cost_categories_handler())
+        print(cost_categories_handler()) # NO T201
         return
     if len(parts) != COST_PARTS:
-        print(UNKNOWN_COMMAND_MSG)
+        print(UNKNOWN_COMMAND_MSG) # NO T201
         return
 
     category = parts[1]
@@ -280,20 +280,20 @@ def handle_cost_command(parts: list[str]) -> None:
     date_str = parts[3]
     amount = parse_amount(amount_str)
     if amount is None:
-        print(UNKNOWN_COMMAND_MSG)
+        print(UNKNOWN_COMMAND_MSG) # NO T201
         return
 
     result = cost_handler(category, amount, date_str)
-    print(result)
+    print(result) # NO T201
 
 
 def handle_stats_command(parts: list[str]) -> None:
     if len(parts) != STATS_PARTS:
-        print(UNKNOWN_COMMAND_MSG)
+        print(UNKNOWN_COMMAND_MSG) # NO T201
         return
     date_str = parts[1]
     result = stats_handler(date_str)
-    print(result)
+    print(result) # NO T201
 
 
 def process_command(parts: list[str]) -> None:
@@ -306,7 +306,7 @@ def process_command(parts: list[str]) -> None:
         case "stats":
             handle_stats_command(parts)
         case _:
-            print(UNKNOWN_COMMAND_MSG)
+            print(UNKNOWN_COMMAND_MSG) # NO T201
 
 
 def main() -> None:
@@ -314,7 +314,7 @@ def main() -> None:
         line = input()
         parts = line.split()
         if not parts:
-            print(UNKNOWN_COMMAND_MSG)
+            print(UNKNOWN_COMMAND_MSG) # NO T201
             break
         process_command(parts)
 
