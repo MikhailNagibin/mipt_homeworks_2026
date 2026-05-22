@@ -1,0 +1,8 @@
+project/config.yaml
+__pycache__/
+.env
+.coverage
+.mypy_cache/
+.ruff_cache/
+*.pyc
+.DS_Store
