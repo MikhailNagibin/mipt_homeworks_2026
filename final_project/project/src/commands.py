@@ -1,9 +1,9 @@
 import os
 from typing import Optional
 
-from history import HistoryManager
-from api_client import stream_chat_completion
-from file_utils import chunk_file
+from .history import HistoryManager
+from .api_client import stream_chat_completion
+from .file_utils import chunk_file
 
 
 def cmd_reset(history: HistoryManager) -> None:

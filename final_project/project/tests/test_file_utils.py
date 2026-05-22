@@ -1,6 +1,6 @@
 import os
 import tempfile
-from file_utils import replace_file_contents
+from src.file_utils import replace_file_contents
 
 
 def test_replace_file_contents_single() -> None:

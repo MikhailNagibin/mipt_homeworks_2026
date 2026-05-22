@@ -1,11 +1,11 @@
 import sys
 import signal
-from config import load_config
+from .config import load_config
 from typing import Any
-from history import HistoryManager
-from api_client import stream_chat_completion
-from file_utils import replace_file_contents
-from commands import cmd_reset, cmd_file_chunk
+from .history import HistoryManager
+from .api_client import stream_chat_completion
+from .file_utils import replace_file_contents
+from .commands import cmd_reset, cmd_file_chunk
 
 
 def custom_input() -> str:

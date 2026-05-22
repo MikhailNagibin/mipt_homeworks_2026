@@ -1,4 +1,4 @@
-from history import HistoryManager
+from src.history import HistoryManager
 
 
 def test_add_message() -> None:
