@@ -1,4 +1,4 @@
-config.yaml
+project/config.yaml
 __pycache__/
 .env
 .coverage
